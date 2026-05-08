@@ -1,0 +1,109 @@
+#!/usr/bin/env bash
+set -e
+
+# Configuración de los repositorios Fork
+# Cambia estos enlaces por los tuyos si renombras tus repositorios en GitHub.
+REPO_WAYWALLEN_DISPLAY="https://github.com/Shnimlz/waywallen-display.git"
+REPO_OPEN_WALLPAPER_ENGINE="https://github.com/Shnimlz/open-wallpaper-engine.git"
+
+# Colores para la salida
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+RED='\033[0;31m'
+NC='\033[0m' # No Color
+
+echo -e "${BLUE}=== Waywallen Ecosystem Installer ===${NC}"
+
+# 1. Comprobación de dependencias
+echo -e "${BLUE}[1/6] Comprobando dependencias...${NC}"
+for cmd in git cmake clang++ ninja sudo; do
+    if ! command -v $cmd &> /dev/null; then
+        echo -e "${RED}Error: El comando '$cmd' no está instalado o no está en el PATH.${NC}"
+        echo "Por favor instálalo e inténtalo de nuevo (ej. sudo pacman -S git cmake clang ninja sudo)."
+        exit 1
+    fi
+done
+echo -e "${GREEN}Dependencias verificadas.${NC}"
+
+# Pedir permisos de sudo por adelantado
+echo -e "${BLUE}Se requieren permisos de administrador para instalar los archivos en /usr/${NC}"
+sudo -v
+
+# Entorno base: asumimos que estamos dentro del repositorio principal 'waywallen'
+BASE_DIR="$(dirname "$(realpath "$0")")/.."
+cd "$BASE_DIR"
+
+# 2. Clonado de repositorios faltantes
+echo -e "${BLUE}[2/6] Preparando repositorios...${NC}"
+
+if [ ! -d "waywallen-display" ]; then
+    echo "Clonando waywallen-display..."
+    git clone "$REPO_WAYWALLEN_DISPLAY" waywallen-display
+else
+    echo "Directorio waywallen-display ya existe."
+fi
+
+if [ ! -d "open-wallpaper-engine" ]; then
+    echo "Clonando open-wallpaper-engine..."
+    git clone "$REPO_OPEN_WALLPAPER_ENGINE" open-wallpaper-engine
+else
+    echo "Directorio open-wallpaper-engine ya existe."
+fi
+
+# 3. Compilar e Instalar waywallen (Daemon)
+echo -e "${BLUE}[3/6] Compilando e instalando waywallen (Daemon & UI)...${NC}"
+cd waywallen
+cmake --preset clang-release -DCMAKE_INSTALL_PREFIX=/usr
+cmake --build build/clang-release -j$(nproc)
+echo "Instalando waywallen en el sistema..."
+sudo cmake --install build/clang-release
+cd ..
+
+# 4. Compilar e Instalar open-wallpaper-engine (wescene-renderer)
+echo -e "${BLUE}[4/6] Compilando e instalando open-wallpaper-engine...${NC}"
+cd open-wallpaper-engine
+cmake --preset clang-release -DBUILD_WEWEB=OFF -DBUILD_VIEWER=OFF -DBUILD_TESTS=OFF -DCMAKE_INSTALL_PREFIX=/usr
+cmake --build build/clang-release -j$(nproc)
+echo "Instalando open-wallpaper-engine en el sistema..."
+sudo cmake --install build/clang-release
+cd ..
+
+# 5. Compilar e Instalar waywallen-display (KDE kpackage)
+echo -e "${BLUE}[5/6] Compilando e instalando waywallen-display (KPackage para Plasma)...${NC}"
+cd waywallen-display
+cmake -S . -B build -DCMAKE_INSTALL_PREFIX=~/.local
+cmake --build build -j$(nproc)
+echo "Instalando módulo de display en Plasma..."
+sudo cmake --install build
+cd ..
+
+# 6. Configuración de Systemd
+echo -e "${BLUE}[6/6] Configurando e iniciando el servicio de sistema (Systemd)...${NC}"
+SERVICE_DIR="$HOME/.config/systemd/user"
+SERVICE_FILE="$SERVICE_DIR/waywallen.service"
+
+mkdir -p "$SERVICE_DIR"
+cat <<EOF > "$SERVICE_FILE"
+[Unit]
+Description=Waywallen Wallpaper Daemon
+After=plasma-workspace.target
+
+[Service]
+ExecStart=/usr/bin/waywallen
+Restart=on-failure
+RestartSec=5
+Environment="WAYLAND_DISPLAY=wayland-0"
+
+[Install]
+WantedBy=default.target
+EOF
+
+systemctl --user daemon-reload
+systemctl --user enable --now waywallen.service
+
+echo -e "${GREEN}=== Instalación completada exitosamente ===${NC}"
+echo -e "El demonio de Waywallen ha sido iniciado en segundo plano."
+echo -e "Para aplicar los fondos en tu escritorio KDE:"
+echo -e "1. Haz clic derecho en tu escritorio -> 'Configurar escritorio y fondo de pantalla'"
+echo -e "2. Cambia el tipo de fondo a 'Waywallen'"
+echo -e "3. Asegúrate de configurar el 'Display module' a 'Embedded'."
