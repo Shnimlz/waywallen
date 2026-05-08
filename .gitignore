@@ -5,6 +5,7 @@ target
 /.env
 build
 /build*
+!build_install.sh
 .cache
 /bin
 /install/
