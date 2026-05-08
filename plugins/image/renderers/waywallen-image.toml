@@ -6,5 +6,5 @@ priority = 100
 spawn_version = 4
 
 [renderer.settings]
-fps = { type = "u32", default = 30, min = 1, max = 240, step = 1, identity = true, label_key = "settings.image.fps", group = "render", order = 10 }
-render_node = { type = "string", default = "", identity = true, label_key = "settings.image.render_node", group = "render", order = 20 }
+fps = { type = "u32", default = 30, min = 1, max = 240, step = 1, identity = true, label_key = "Límite de FPS", group = "render", order = 10 }
+render_node = { type = "string", default = "", identity = true, label_key = "Tarjeta Gráfica (Render Node)", group = "render", order = 20 }
