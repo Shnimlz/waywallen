@@ -18,7 +18,7 @@ local VIDEO_EXTS = {
     mp4 = true, m4v = true, mkv = true, webm = true,
     mov = true, avi = true, flv = true, wmv = true,
     mpg = true, mpeg = true, ts = true, m2ts = true,
-    ogv = true, ogm = true,
+    ogv = true, ogm = true, mvp = true,
 }
 
 local function strip_ext(name)
