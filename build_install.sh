@@ -59,10 +59,10 @@ echo "Instalando waywallen en el sistema..."
 sudo cmake --install build/clang-release
 cd ..
 
-# 4. Compilar e Instalar open-wallpaper-engine (wescene-renderer)
+# 4. Compilar e Instalar open-wallpaper-engine (wescene-renderer y weweb-renderer)
 echo -e "${BLUE}[4/6] Compilando e instalando open-wallpaper-engine...${NC}"
 cd open-wallpaper-engine
-cmake --preset clang-release -DBUILD_WEWEB=OFF -DBUILD_VIEWER=OFF -DBUILD_TESTS=OFF -DCMAKE_INSTALL_PREFIX=/usr
+cmake --preset clang-release -DBUILD_WEWEB=ON -DBUILD_VIEWER=OFF -DBUILD_TESTS=OFF -DCMAKE_INSTALL_PREFIX=/usr
 cmake --build build/clang-release -j$(nproc)
 echo "Instalando open-wallpaper-engine en el sistema..."
 sudo cmake --install build/clang-release
