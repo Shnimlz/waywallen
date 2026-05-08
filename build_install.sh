@@ -99,7 +99,8 @@ WantedBy=default.target
 EOF
 
 systemctl --user daemon-reload
-systemctl --user enable --now waywallen.service
+systemctl --user enable waywallen.service
+systemctl --user restart waywallen.service
 
 echo -e "${GREEN}=== Instalación completada exitosamente ===${NC}"
 echo -e "El demonio de Waywallen ha sido iniciado en segundo plano."
