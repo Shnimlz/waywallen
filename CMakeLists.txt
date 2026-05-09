@@ -42,6 +42,10 @@ if(WAYWALLEN_BUILD_DAEMON)
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
         COMPONENT Daemon
     )
+    install(PROGRAMS scripts/waywallen-import
+        DESTINATION ${CMAKE_INSTALL_BINDIR}
+        COMPONENT Daemon
+    )
 endif()
 
 if(WAYWALLEN_BUILD_PLUGINS)

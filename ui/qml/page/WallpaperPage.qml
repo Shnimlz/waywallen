@@ -59,6 +59,48 @@ MD.Page {
         id: autoDetectQuery
     }
 
+    W.LibraryAddQuery {
+        id: importLibraryAdd
+        onFinished: scanQuery.reload()
+    }
+
+    FileDialog {
+        id: importFileDialog
+        title: "Import Wallpaper"
+        nameFilters: [
+            "All supported (*.zip *.mp4 *.mkv *.webm *.mov *.avi *.mvp *.png *.jpg *.jpeg *.webp *.gif *.bmp *.avif)",
+            "ZIP archives (*.zip)",
+            "Videos (*.mp4 *.mkv *.webm *.mov *.avi *.mvp)",
+            "Images (*.png *.jpg *.jpeg *.webp *.gif *.bmp *.avif)"
+        ]
+        onAccepted: {
+            const path = selectedFile.toString().replace(/^file:\/\//, "");
+            const dest = W.DaemonDBusClient.importFile(path);
+            if (dest && dest.length > 0) {
+                W.Action.toast("Imported: " + dest);
+                // The import script places files under ~/Wallpapers/Imported.
+                // Register that directory as a library if not already present.
+                const importRoot = dest.replace(/\/[^/]+\/?$/, "");
+                const libs = W.App.libraryManager.libraries || [];
+                let alreadyRegistered = false;
+                for (let i = 0; i < libs.length; i++) {
+                    if (libs[i].path === importRoot) {
+                        alreadyRegistered = true;
+                        break;
+                    }
+                }
+                if (!alreadyRegistered) {
+                    importLibraryAdd.pluginName = "wallpaper_engine";
+                    importLibraryAdd.path = importRoot;
+                    importLibraryAdd.reload();
+                }
+                scanQuery.reload();
+            } else {
+                W.Action.toast("Import failed — check the file format");
+            }
+        }
+    }
+
     W.SettingsGetQuery {
         id: filterSettingsGet
         onGlobalChanged: {
@@ -215,6 +257,11 @@ MD.Page {
                                 onTriggered: MD.Util.showPopup('waywallen.ui/PagePopup', {
                                     source: 'waywallen.ui/SourceManagePage'
                                 }, win)
+                            },
+                            MD.Action {
+                                icon.name: MD.Token.icon.add
+                                text: 'Import'
+                                onTriggered: importFileDialog.open()
                             },
                             MD.Action {
                                 icon.name: MD.Token.icon.refresh
