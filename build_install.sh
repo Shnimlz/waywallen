@@ -50,31 +50,54 @@ else
     echo "Directorio open-wallpaper-engine ya existe."
 fi
 
+# Variable para saber si debemos reiniciar el servicio al final
+RESTART_NEEDED=false
+
 # 3. Compilar e Instalar waywallen (Daemon)
 echo -e "${BLUE}[3/6] Compilando e instalando waywallen (Daemon & UI)...${NC}"
 cd waywallen
 cmake --preset clang-release -DCMAKE_INSTALL_PREFIX=/usr
-cmake --build build/clang-release -j$(nproc)
-echo "Instalando waywallen en el sistema..."
-sudo cmake --install build/clang-release
+BUILD_OUT=$(cmake --build build/clang-release -j$(nproc))
+echo "$BUILD_OUT"
+if ! echo "$BUILD_OUT" | grep -q "ninja: no work to do."; then
+    echo "Instalando waywallen en el sistema..."
+    sudo cmake --install build/clang-release
+    RESTART_NEEDED=true
+else
+    echo "Sin cambios en waywallen, saltando instalación."
+fi
 cd ..
 
 # 4. Compilar e Instalar open-wallpaper-engine (wescene-renderer y weweb-renderer)
 echo -e "${BLUE}[4/6] Compilando e instalando open-wallpaper-engine...${NC}"
 cd open-wallpaper-engine
 cmake --preset clang-release -DBUILD_WEWEB=ON -DBUILD_VIEWER=OFF -DBUILD_TESTS=OFF -DCMAKE_INSTALL_PREFIX=/usr
-cmake --build build/clang-release -j$(nproc)
-echo "Instalando open-wallpaper-engine en el sistema..."
-sudo cmake --install build/clang-release
+BUILD_OUT=$(cmake --build build/clang-release -j$(nproc))
+echo "$BUILD_OUT"
+if ! echo "$BUILD_OUT" | grep -q "ninja: no work to do."; then
+    echo "Instalando open-wallpaper-engine en el sistema..."
+    sudo cmake --install build/clang-release
+    RESTART_NEEDED=true
+else
+    echo "Sin cambios en open-wallpaper-engine, saltando instalación."
+fi
 cd ..
 
 # 5. Compilar e Instalar waywallen-display (KDE kpackage)
 echo -e "${BLUE}[5/6] Compilando e instalando waywallen-display (KPackage para Plasma)...${NC}"
 cd waywallen-display
 cmake -S . -B build -DCMAKE_INSTALL_PREFIX=~/.local
-cmake --build build -j$(nproc)
-echo "Instalando módulo de display en Plasma..."
-sudo cmake --install build
+BUILD_OUT=$(cmake --build build -j$(nproc))
+echo "$BUILD_OUT"
+if ! echo "$BUILD_OUT" | grep -q "ninja: no work to do."; then
+    echo "Instalando módulo de display en Plasma..."
+    sudo cmake --install build
+    echo "Creando enlace simbólico para el módulo QML en /usr/lib/qt6/qml/Waywallen..."
+    sudo ln -sf /usr/local/lib/qt6/qml/Waywallen /usr/lib/qt6/qml/Waywallen
+    RESTART_NEEDED=true
+else
+    echo "Sin cambios en waywallen-display, saltando instalación."
+fi
 cd ..
 
 # 6. Configuración de Systemd
@@ -82,8 +105,9 @@ echo -e "${BLUE}[6/6] Configurando e iniciando el servicio de sistema (Systemd).
 SERVICE_DIR="$HOME/.config/systemd/user"
 SERVICE_FILE="$SERVICE_DIR/waywallen.service"
 
-mkdir -p "$SERVICE_DIR"
-cat <<EOF > "$SERVICE_FILE"
+if [ ! -f "$SERVICE_FILE" ]; then
+    mkdir -p "$SERVICE_DIR"
+    cat <<EOF > "$SERVICE_FILE"
 [Unit]
 Description=Waywallen Wallpaper Daemon
 After=plasma-workspace.target
@@ -97,14 +121,21 @@ Environment="WAYLAND_DISPLAY=wayland-0"
 [Install]
 WantedBy=default.target
 EOF
+    systemctl --user daemon-reload
+    systemctl --user enable waywallen.service
+    RESTART_NEEDED=true
+fi
 
-systemctl --user daemon-reload
-systemctl --user enable waywallen.service
-systemctl --user restart waywallen.service
+if [ "$RESTART_NEEDED" = true ]; then
+    echo "Reiniciando el servicio waywallen..."
+    systemctl --user daemon-reload
+    systemctl --user restart waywallen.service
+else
+    echo "No hubo cambios en los binarios, el servicio sigue corriendo sin interrupción."
+fi
 
 echo -e "${GREEN}=== Instalación completada exitosamente ===${NC}"
 echo -e "El demonio de Waywallen ha sido iniciado en segundo plano."
 echo -e "Para aplicar los fondos en tu escritorio KDE:"
 echo -e "1. Haz clic derecho en tu escritorio -> 'Configurar escritorio y fondo de pantalla'"
 echo -e "2. Cambia el tipo de fondo a 'Waywallen'"
-echo -e "3. Asegúrate de configurar el 'Display module' a 'Embedded'."
