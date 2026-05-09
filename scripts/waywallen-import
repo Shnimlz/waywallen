@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+# waywallen-import — helper script for importing wallpaper files.
+#
+# Usage:
+#   waywallen-import <file_path>
+#
+# Supported file types:
+#   .zip       — Extracted into a subfolder under IMPORT_DIR.
+#                If it contains project.json (Wallpaper Engine scene),
+#                the folder is kept as-is. Otherwise plain media files
+#                are moved to the root of IMPORT_DIR.
+#   .mp4 .mkv .webm .mov .avi .mvp
+#   .png .jpg .jpeg .webp .gif .bmp .avif
+#                — Copied directly into IMPORT_DIR.
+#
+# The script prints the destination path on success and exits 0.
+# On failure it prints an error message to stderr and exits 1.
+
+set -euo pipefail
+
+IMPORT_DIR="${HOME}/Wallpapers/Imported"
+
+if [ $# -lt 1 ]; then
+    echo "Usage: waywallen-import <file_path>" >&2
+    exit 1
+fi
+
+FILE="$1"
+
+if [ ! -f "$FILE" ]; then
+    echo "Error: File not found: $FILE" >&2
+    exit 1
+fi
+
+mkdir -p "$IMPORT_DIR"
+
+EXT="${FILE##*.}"
+EXT_LOWER=$(echo "$EXT" | tr '[:upper:]' '[:lower:]')
+
+case "$EXT_LOWER" in
+    zip)
+        # Create a temp dir, extract, then decide where to place it.
+        TMPDIR=$(mktemp -d)
+        trap 'rm -rf "$TMPDIR"' EXIT
+
+        unzip -q "$FILE" -d "$TMPDIR"
+
+        # Find project.json — indicates a Wallpaper Engine package.
+        PROJECT=$(find "$TMPDIR" -maxdepth 2 -name "project.json" -print -quit)
+        if [ -n "$PROJECT" ]; then
+            # Scene/video/web WE package — move the containing folder.
+            PKG_DIR=$(dirname "$PROJECT")
+            # Use the folder name from the zip, or fall back to the zip filename.
+            BASENAME=$(basename "$PKG_DIR")
+            if [ "$BASENAME" = "$(basename "$TMPDIR")" ]; then
+                BASENAME=$(basename "$FILE" .zip)
+            fi
+            DEST="$IMPORT_DIR/$BASENAME"
+            # Avoid overwriting existing folders
+            if [ -d "$DEST" ]; then
+                BASENAME="${BASENAME}_$(date +%s)"
+                DEST="$IMPORT_DIR/$BASENAME"
+            fi
+            mv "$PKG_DIR" "$DEST"
+            echo "$DEST"
+        else
+            # Plain archive — move all files to IMPORT_DIR directly.
+            find "$TMPDIR" -type f \( \
+                -iname "*.mp4" -o -iname "*.mkv" -o -iname "*.webm" \
+                -o -iname "*.mov" -o -iname "*.avi" -o -iname "*.mvp" \
+                -o -iname "*.png" -o -iname "*.jpg" -o -iname "*.jpeg" \
+                -o -iname "*.webp" -o -iname "*.gif" -o -iname "*.bmp" \
+                -o -iname "*.avif" \
+            \) -exec mv -n {} "$IMPORT_DIR/" \;
+            echo "$IMPORT_DIR"
+        fi
+        ;;
+    mp4|mkv|webm|mov|avi|mvp|png|jpg|jpeg|webp|gif|bmp|avif|tiff|tif)
+        cp -n "$FILE" "$IMPORT_DIR/"
+        echo "$IMPORT_DIR/$(basename "$FILE")"
+        ;;
+    *)
+        echo "Error: Unsupported file type: .$EXT_LOWER" >&2
+        exit 1
+        ;;
+esac

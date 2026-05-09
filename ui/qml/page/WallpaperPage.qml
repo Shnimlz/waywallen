@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 pragma ValueTypeBehavior: Assertable
 import QtQuick
+import QtQuick.Dialogs
 import QtQuick.Layouts
 import QtQuick.Templates as T
 import Qcm.Material as MD

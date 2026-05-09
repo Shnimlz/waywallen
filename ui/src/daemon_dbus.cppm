@@ -68,6 +68,10 @@ public:
     /// Send SIGTERM to `pid`. Returns true if kill(2) succeeded.
     Q_INVOKABLE bool killProcess(quint32 pid);
 
+    /// Run the waywallen-import helper script on `filePath`.
+    /// Returns the destination path on success, empty string on failure.
+    Q_INVOKABLE QString importFile(const QString& filePath);
+
     Q_SIGNAL void statusChanged();
     Q_SIGNAL void wsPortChanged(quint16 port);
 

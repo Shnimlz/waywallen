@@ -252,6 +252,25 @@ bool DaemonDBusClient::killProcess(quint32 pid) {
     return true;
 }
 
+QString DaemonDBusClient::importFile(const QString& filePath) {
+    QProcess proc;
+    proc.setProgram(QStringLiteral("waywallen-import"));
+    proc.setArguments({filePath});
+    proc.start();
+    if (! proc.waitForFinished(30000)) {
+        qWarning("DaemonDBusClient: waywallen-import timed out for %s",
+                 qPrintable(filePath));
+        return {};
+    }
+    if (proc.exitCode() != 0) {
+        qWarning("DaemonDBusClient: waywallen-import failed (%d): %s",
+                 proc.exitCode(),
+                 qPrintable(QString::fromLocal8Bit(proc.readAllStandardError())));
+        return {};
+    }
+    return QString::fromLocal8Bit(proc.readAllStandardOutput()).trimmed();
+}
+
 void DaemonDBusClient::on_service_registered(const QString& service) {
     if (service != QString::fromLatin1(kBusName)) return;
     qDebug("DaemonDBusClient: daemon registered on bus");
